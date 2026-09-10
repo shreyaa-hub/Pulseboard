@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart } from '@/components/charts/BarChart';
+import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import { LineChart } from '@/components/charts/LineChart';
 import { ScatterChart } from '@/components/charts/ScatterChart';
 import { PerformanceMonitor } from '@/components/ui/PerformanceMonitor';
@@ -26,6 +27,7 @@ export function Dashboard() {
           <ScatterChart driver={driver} store={store} xSeries={scatterX} ySeries={scatterY} />
         )}
       </div>
+      <HeatmapChart driver={driver} store={store} series={series} height={280} />
     </div>
   );
 }
