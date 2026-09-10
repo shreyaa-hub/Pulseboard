@@ -226,3 +226,109 @@ a {
   outline: 2px solid #4c9aff;
   outline-offset: 1px;
 }
+/* Append to app/globals.css. */
+
+.dt {
+  background: #12161c;
+  border: 1px solid #232a34;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #232a34;
+}
+
+.dt-title {
+  font-size: 13px;
+  color: #e6e9ee;
+}
+
+.dt-head button {
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: #e6e9ee;
+  background: #1a2029;
+  border: 1px solid #2b3340;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.dt-head button:hover {
+  border-color: #3c4757;
+}
+
+.dt-header-row,
+.dt-row {
+  display: flex;
+  align-items: center;
+}
+
+.dt-header-row {
+  background: #161b22;
+  border-bottom: 1px solid #232a34;
+  font-size: 11px;
+  color: #8b95a5;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.dt-scroll {
+  overflow-y: auto;
+  position: relative;
+}
+
+.dt-spacer {
+  position: relative;
+}
+
+.dt-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-bottom: 1px solid #1a2029;
+  /* translateY is written directly onto this element on every layout() call —
+     GPU-composited, so repositioning ~25 pooled rows on scroll costs nothing
+     close to a reflow. */
+  will-change: transform;
+}
+
+.dt-row:hover {
+  background: #161b22;
+}
+
+.dt-header-cell,
+.dt-cell {
+  flex: 1;
+  min-width: 0;
+  padding: 0 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dt-ts {
+  flex: 0 0 130px;
+  color: #8b95a5;
+}
+
+.dt-cell.status-ok {
+  color: #e6e9ee;
+}
+
+.dt-cell.status-warn {
+  color: #e0b83c;
+}
+
+.dt-cell.status-crit {
+  color: #ef6f8b;
+  font-weight: 600;
+}
