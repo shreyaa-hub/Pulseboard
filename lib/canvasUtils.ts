@@ -102,6 +102,15 @@ export function formatClock(t: number): string {
   return hms.format(t);
 }
 
+/** formatClock loses sub-second detail, which is fine for an axis label but
+ *  means two consecutive 100ms ticks in a table would print identically.
+ *  This appends the millisecond remainder so adjacent rows stay visually
+ *  distinct. */
+export function formatClockMs(t: number): string {
+  const ms = String(Math.floor(t) % 1000).padStart(3, '0');
+  return `${hms.format(t)}.${ms}`;
+}
+
 export function formatValue(v: number, span: number): string {
   const digits = span >= 100 ? 0 : span >= 10 ? 1 : span >= 1 ? 2 : 3;
   return v.toFixed(digits);
