@@ -117,6 +117,27 @@ export function formatValue(v: number, span: number): string {
 }
 
 /**
+ * ctx.fillText has no concept of overflow — a label wider than its allotted
+ * space just runs past the canvas edge with nothing to show it was cut,
+ * which is exactly what "Coolant temperature" does in the heatmap's label
+ * gutter. This binary-searches down to the longest prefix (plus an ellipsis)
+ * that actually fits maxWidth, using the context's current font.
+ */
+export function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >>> 1;
+    const candidate = text.slice(0, mid) + '…';
+    if (ctx.measureText(candidate).width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo > 0 ? text.slice(0, lo) + '…' : '…';
+}
+
+/**
  * Crisp 1px lines. A vertical line at x=100 with lineWidth 1 covers half of
  * pixel 99 and half of 100, so it renders as two grey pixels instead of one
  * dark one. Offsetting by half a pixel fixes it.
