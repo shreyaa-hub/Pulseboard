@@ -4,6 +4,7 @@ import { BarChart } from '@/components/charts/BarChart';
 import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import { LineChart } from '@/components/charts/LineChart';
 import { ScatterChart } from '@/components/charts/ScatterChart';
+import { DataTable } from '@/components/ui/DataTable';
 import { PerformanceMonitor } from '@/components/ui/PerformanceMonitor';
 import { useDashboard } from '@/components/providers/DataProvider';
 
@@ -28,6 +29,7 @@ export function Dashboard() {
         )}
       </div>
       <HeatmapChart driver={driver} store={store} series={series} height={280} />
+      <DataTable store={store} series={series} height={320} />
     </div>
   );
 }
