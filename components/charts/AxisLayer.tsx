@@ -21,10 +21,8 @@ export interface AxisHandle {
  * directly. React renders this component once; after that it is 30-odd DOM
  * writes per frame, which is nothing.
  */
-export const AxisLayer = forwardRef<AxisHandle, { className?: string }>(function AxisLayer(
-  { className },
-  ref,
-) {
+export const AxisLayer = forwardRef<AxisHandle, { className?: string; xMode?: 'time' | 'value' }>(
+  function AxisLayer({ className, xMode = 'time' }, ref) {
   const xLines = useRef<(SVGLineElement | null)[]>([]);
   const xLabels = useRef<(SVGTextElement | null)[]>([]);
   const yLines = useRef<(SVGLineElement | null)[]>([]);
@@ -39,7 +37,10 @@ export const AxisLayer = forwardRef<AxisHandle, { className?: string }>(function
       update(vp: Viewport, area: PlotArea) {
         const bottom = area.top + area.height;
 
-        const nx = timeTicks(vp.tMin, vp.tMax, 6, scratch);
+        const nx =
+          xMode === 'time'
+            ? timeTicks(vp.tMin, vp.tMax, 6, scratch)
+            : niceTicks(vp.tMin, vp.tMax, 6, scratch);
         const xSpan = vp.tMax - vp.tMin;
         for (let i = 0; i < MAX_TICKS; i++) {
           const line = xLines.current[i];
@@ -61,7 +62,8 @@ export const AxisLayer = forwardRef<AxisHandle, { className?: string }>(function
           line.setAttribute('y2', String(bottom + 4));
           label.setAttribute('x', String(x));
           label.setAttribute('y', String(bottom + 17));
-          label.textContent = formatClock(scratch[i]);
+          label.textContent =
+            xMode === 'time' ? formatClock(scratch[i]) : formatValue(scratch[i], xSpan);
         }
 
         const ny = niceTicks(vp.yMin, vp.yMax, 5, scratch);
@@ -90,7 +92,7 @@ export const AxisLayer = forwardRef<AxisHandle, { className?: string }>(function
         }
       },
     }),
-    [scratch],
+    [scratch, xMode],
   );
 
   return (
