@@ -52,6 +52,15 @@ export function useChartInteraction(
     const onWheel = (e: WheelEvent) => {
       const area = areaRef.current;
       if (!area) return;
+
+      // A plain two-finger scroll and a pinch gesture both arrive as wheel
+      // events on a trackpad. Zooming on every one of them means a chart
+      // sitting anywhere on the page blocks the page from scrolling at all —
+      // genuinely bad, and the reason for this gate. Browsers already mark
+      // real pinch gestures with ctrlKey:true (a long-standing convention,
+      // not something detected here), so requiring it also means pinch still
+      // zooms naturally; only an unmodified scroll is left alone.
+      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
 
       const rect = el.getBoundingClientRect();

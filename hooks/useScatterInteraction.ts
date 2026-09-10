@@ -47,6 +47,7 @@ export function useScatterInteraction(initial: ScatterDomain, areaRef: React.Ref
     const onWheel = (e: WheelEvent) => {
       const area = areaRef.current;
       if (!area) return;
+      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
 
       const rect = el.getBoundingClientRect();
