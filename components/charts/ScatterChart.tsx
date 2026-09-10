@@ -200,7 +200,7 @@ export function ScatterChart({
         </span>
       </figcaption>
 
-      <div className="chart-body" ref={elementRef}>
+      <div className="chart-body chart-body--2d" ref={elementRef}>
         <canvas ref={canvasRef} />
         <AxisLayer ref={axisRef} className="chart-axis" xMode="value" />
       </div>
