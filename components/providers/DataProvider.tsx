@@ -14,6 +14,14 @@ export interface SerialisedBatch {
   status: number[];
 }
 
+export type AggregationMode = 'auto' | '1m' | '5m' | '1h';
+
+export const AGGREGATION_MS: Record<Exclude<AggregationMode, 'auto'>, number> = {
+  '1m': 60_000,
+  '5m': 300_000,
+  '1h': 3_600_000,
+};
+
 interface Ctx {
   store: DataStore;
   driver: RafDriver;
@@ -23,6 +31,20 @@ interface Ctx {
   setPaused: (p: boolean) => void;
   capacity: number;
   setCapacity: (n: number) => void;
+
+  visibleSeriesIds: ReadonlySet<string>;
+  toggleSeries: (id: string) => void;
+
+  /** null = each chart keeps its own default window. A preset button sets an
+   *  explicit width and bumps rangeToken so every time-based chart resyncs
+   *  once, then goes back to being independently pannable/zoomable until the
+   *  next preset click. */
+  timeRangeMs: number | null;
+  rangeToken: number;
+  setTimeRange: (ms: number | null) => void;
+
+  aggregation: AggregationMode;
+  setAggregation: (mode: AggregationMode) => void;
 }
 
 const DataContext = createContext<Ctx | null>(null);
@@ -45,6 +67,13 @@ export function DataProvider({
   const [capacity, setCapacityState] = useState(20_000);
   const [pointsPerTick, setPointsPerTickState] = useState(1);
   const [paused, setPausedState] = useState(false);
+
+  const [visibleSeriesIds, setVisibleSeriesIds] = useState<ReadonlySet<string>>(
+    () => new Set(SERIES.map((s) => s.id)),
+  );
+  const [timeRangeMs, setTimeRangeMs] = useState<number | null>(null);
+  const [rangeToken, setRangeToken] = useState(0);
+  const [aggregation, setAggregationState] = useState<AggregationMode>('auto');
 
   // Created once. Putting these in state would mean a new store on every
   // render, and every chart would lose its buffers.
@@ -103,6 +132,10 @@ export function DataProvider({
       pointsPerTick,
       paused,
       capacity,
+      visibleSeriesIds,
+      timeRangeMs,
+      rangeToken,
+      aggregation,
       setPointsPerTick: (n) => {
         setPointsPerTickState(n);
         workerRef.current?.postMessage({ type: 'rate', pointsPerTick: n } satisfies WorkerIn);
@@ -116,8 +149,21 @@ export function DataProvider({
         setCapacityState(n);
         store.setCapacity(n);
       },
+      toggleSeries: (id) => {
+        setVisibleSeriesIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+      },
+      setTimeRange: (ms) => {
+        setTimeRangeMs(ms);
+        setRangeToken((t) => t + 1);
+      },
+      setAggregation: setAggregationState,
     }),
-    [store, driver, pointsPerTick, paused, capacity],
+    [store, driver, pointsPerTick, paused, capacity, visibleSeriesIds, timeRangeMs, rangeToken, aggregation],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
