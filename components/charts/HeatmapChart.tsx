@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useChartInteraction } from '@/hooks/useChartInteraction';
 import { useChartRenderer } from '@/hooks/useChartRenderer';
+import { useTimeRangeSync } from '@/hooks/useTimeRangeSync';
+import { AGGREGATION_MS, type AggregationMode } from '@/components/providers/DataProvider';
 import { bucketAggregate, pickBucketMs } from '@/lib/aggregate';
 import { formatClock, formatValue, timeTicks } from '@/lib/canvasUtils';
 import type { DataStore } from '@/lib/dataStore';
@@ -33,6 +35,9 @@ interface Props {
   series: readonly SeriesMeta[];
   windowMs?: number;
   height?: number;
+  rangeToken?: number;
+  rangeOverrideMs?: number | null;
+  aggregation?: AggregationMode;
 }
 
 /**
@@ -48,7 +53,16 @@ interface Props {
  * and produces seams at fractional pixel boundaries, where letting the canvas
  * scale a small exact bitmap doesn't.
  */
-export function HeatmapChart({ driver, store, series, windowMs = 120_000, height = 260 }: Props) {
+export function HeatmapChart({
+  driver,
+  store,
+  series,
+  windowMs = 120_000,
+  height = 260,
+  rangeToken = 0,
+  rangeOverrideMs = null,
+  aggregation = 'auto',
+}: Props) {
   const areaRef = useRef<PlotArea>({ left: GUTTER_LEFT, top: GUTTER_TOP, width: 0, height: 0 });
   const themeRef = useRef({ bg: '#12161c', grid: '#232a34', text: '#8b95a5' });
   const ticksRef = useRef(new Float64Array(14));
@@ -87,6 +101,11 @@ export function HeatmapChart({ driver, store, series, windowMs = 120_000, height
 
   const { stateRef, elementRef } = useChartInteraction(initialViewport, areaRef);
 
+  useTimeRangeSync(stateRef, rangeToken, rangeOverrideMs, () => {
+    const buf = series[0] ? store.buffer(series[0].id) : undefined;
+    return buf && buf.length > 0 ? buf.timeAt(0) : null;
+  });
+
   const draw = useCallback<Parameters<typeof useChartRenderer>[1]>(
     (ctx, size, frame, resized) => {
       const rows = series.length;
@@ -114,7 +133,12 @@ export function HeatmapChart({ driver, store, series, windowMs = 120_000, height
       ctx.fillStyle = theme.bg;
       ctx.fillRect(0, 0, size.width, size.height);
 
-      const bucketMs = pickBucketMs(span, TARGET_COLS);
+      const bucketMs = aggregation === 'auto' ? pickBucketMs(span, TARGET_COLS) : AGGREGATION_MS[aggregation];
+      // MAX_COLS existed already as a render-cost cap; pinning a small bucket
+      // (e.g. 1m) against a huge span (e.g. "All" over several hours) can now
+      // hit that cap before covering the whole range — bucketAggregate simply
+      // drops points past bucketCount rather than showing a stretched grid,
+      // which reads as "showing the most recent portion" rather than an error.
       const cols = Math.min(MAX_COLS, Math.ceil(span / bucketMs) + 1);
 
       const g = gridRef.current;
@@ -221,7 +245,7 @@ export function HeatmapChart({ driver, store, series, windowMs = 120_000, height
         setReadout(null);
       }
     },
-    [store, series, elementRef, stateRef],
+    [store, series, aggregation, elementRef, stateRef],
   );
 
   const { canvasRef } = useChartRenderer(driver, draw);

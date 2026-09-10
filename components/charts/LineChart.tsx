@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { AxisLayer, type AxisHandle } from './AxisLayer';
 import { useChartInteraction } from '@/hooks/useChartInteraction';
 import { useChartRenderer } from '@/hooks/useChartRenderer';
+import { useTimeRangeSync } from '@/hooks/useTimeRangeSync';
 import { crisp, niceTicks, timeTicks } from '@/lib/canvasUtils';
 import { lttbDecimate, minMaxDecimate, scratchSize, strokePath, type Decimation } from '@/lib/decimate';
 import type { DataStore } from '@/lib/dataStore';
@@ -23,6 +24,12 @@ interface Props {
   windowMs?: number;
   decimation?: Decimation;
   height?: number;
+  /** Bumped by the global time-range control; see useTimeRangeSync. */
+  rangeToken?: number;
+  /** The active preset's width in ms, or null for "All" (full buffer). Only
+   *  read at the instant rangeToken changes — otherwise unused, so its
+   *  initial value before any click doesn't matter. */
+  rangeOverrideMs?: number | null;
 }
 
 /** Canvas can't read CSS custom properties, so they're resolved on resize. */
@@ -42,6 +49,8 @@ export function LineChart({
   windowMs = 60_000,
   decimation = 'minmax',
   height = 240,
+  rangeToken = 0,
+  rangeOverrideMs = null,
 }: Props) {
   const axisRef = useRef<AxisHandle | null>(null);
   const areaRef = useRef<PlotArea>({ left: GUTTER_LEFT, top: GUTTER_TOP, width: 0, height: 0 });
@@ -62,6 +71,16 @@ export function LineChart({
   }, [windowMs, series.min, series.max]);
 
   const { stateRef, elementRef } = useChartInteraction(initialViewport, areaRef);
+
+  // rangeOverrideMs is only read inside the hook at the instant a preset
+  // button is clicked (the hook no-ops until rangeToken actually changes), so
+  // a null value there unambiguously means "All" was clicked — it must NOT
+  // be defaulted to windowMs, or "All" would collapse into this chart's
+  // ordinary default window instead of showing the full buffer.
+  useTimeRangeSync(stateRef, rangeToken, rangeOverrideMs, () => {
+    const buf = store.buffer(series.id);
+    return buf && buf.length > 0 ? buf.timeAt(0) : null;
+  });
 
   const draw = useCallback<Parameters<typeof useChartRenderer>[1]>(
     (ctx, size, frame, resized) => {

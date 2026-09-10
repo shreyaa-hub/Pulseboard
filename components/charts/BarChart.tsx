@@ -4,6 +4,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { AxisLayer, type AxisHandle } from './AxisLayer';
 import { useChartInteraction } from '@/hooks/useChartInteraction';
 import { useChartRenderer } from '@/hooks/useChartRenderer';
+import { useTimeRangeSync } from '@/hooks/useTimeRangeSync';
+import { AGGREGATION_MS, type AggregationMode } from '@/components/providers/DataProvider';
 import { bucketAggregate, pickBucketMs } from '@/lib/aggregate';
 import { crisp, niceTicks, timeTicks } from '@/lib/canvasUtils';
 import type { DataStore } from '@/lib/dataStore';
@@ -27,6 +29,11 @@ interface Props {
   series: SeriesMeta;
   windowMs?: number;
   height?: number;
+  rangeToken?: number;
+  rangeOverrideMs?: number | null;
+  /** 'auto' picks bucket width from the current zoom; anything else pins it,
+   *  which is the literal "group by 1m/5m/1h" control the spec asks for. */
+  aggregation?: AggregationMode;
 }
 
 function readTheme(el: HTMLElement) {
@@ -45,7 +52,16 @@ function readTheme(el: HTMLElement) {
  * aggregation the spec asks for elsewhere (1m/5m/1h grouping), just picked
  * automatically from the current zoom level instead of a fixed dropdown.
  */
-export function BarChart({ driver, store, series, windowMs = 120_000, height = 240 }: Props) {
+export function BarChart({
+  driver,
+  store,
+  series,
+  windowMs = 120_000,
+  height = 240,
+  rangeToken = 0,
+  rangeOverrideMs = null,
+  aggregation = 'auto',
+}: Props) {
   const axisRef = useRef<AxisHandle | null>(null);
   const areaRef = useRef<PlotArea>({ left: GUTTER_LEFT, top: GUTTER_TOP, width: 0, height: 0 });
   const themeRef = useRef({ bg: '#12161c', grid: '#232a34', crosshair: '#5a6472' });
@@ -73,6 +89,11 @@ export function BarChart({ driver, store, series, windowMs = 120_000, height = 2
   }, [windowMs, series.min, series.max]);
 
   const { stateRef, elementRef } = useChartInteraction(initialViewport, areaRef);
+
+  useTimeRangeSync(stateRef, rangeToken, rangeOverrideMs, () => {
+    const buf = store.buffer(series.id);
+    return buf && buf.length > 0 ? buf.timeAt(0) : null;
+  });
 
   const draw = useCallback<Parameters<typeof useChartRenderer>[1]>(
     (ctx, size, frame, resized) => {
@@ -108,7 +129,7 @@ export function BarChart({ driver, store, series, windowMs = 120_000, height = 2
       ctx.fillRect(0, 0, size.width, size.height);
 
       const span = vp.tMax - vp.tMin;
-      const bucketMs = pickBucketMs(span, TARGET_BARS);
+      const bucketMs = aggregation === 'auto' ? pickBucketMs(span, TARGET_BARS) : AGGREGATION_MS[aggregation];
       const bucketCount = Math.min(500, Math.ceil(span / bucketMs) + 1);
 
       const b = bucketsRef.current;
@@ -194,7 +215,7 @@ export function BarChart({ driver, store, series, windowMs = 120_000, height = 2
 
       axisRef.current?.update(vp, area);
     },
-    [store, series.id, series.colour, elementRef, stateRef],
+    [store, series.id, series.colour, aggregation, elementRef, stateRef],
   );
 
   const { canvasRef } = useChartRenderer(driver, draw);
