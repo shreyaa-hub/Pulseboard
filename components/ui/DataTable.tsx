@@ -134,6 +134,12 @@ export function DataTable({
     scroller.scrollTop = scroller.scrollHeight;
   };
 
+  // Below a few hundred px wide, flex:1 columns would get crushed to
+  // illegible slivers. Giving the row content a real minimum width and
+  // scrolling it horizontally (with the header pinned via position:sticky)
+  // is the standard fix — same trade as most data grids make on mobile.
+  const tableWidth = 130 + series.length * 110;
+
   return (
     <div className="dt">
       <div className="dt-head">
@@ -143,17 +149,17 @@ export function DataTable({
         </button>
       </div>
 
-      <div className="dt-header-row" style={{ height: ROW_HEIGHT }}>
-        <span className="dt-header-cell dt-ts">Time</span>
-        {series.map((s) => (
-          <span key={s.id} className="dt-header-cell">
-            {s.label} ({s.unit})
-          </span>
-        ))}
-      </div>
-
       <div className="dt-scroll" ref={scrollRef} style={{ height }}>
-        <div className="dt-spacer" ref={spacerRef}>
+        <div className="dt-header-row" style={{ height: ROW_HEIGHT, minWidth: tableWidth }}>
+          <span className="dt-header-cell dt-ts">Time</span>
+          {series.map((s) => (
+            <span key={s.id} className="dt-header-cell">
+              {s.label} ({s.unit})
+            </span>
+          ))}
+        </div>
+
+        <div className="dt-spacer" ref={spacerRef} style={{ minWidth: tableWidth }}>
           {Array.from({ length: poolSize }, (_, i) => (
             <div
               key={i}
