@@ -2,13 +2,17 @@
 
 import { BarChart } from '@/components/charts/BarChart';
 import { LineChart } from '@/components/charts/LineChart';
+import { ScatterChart } from '@/components/charts/ScatterChart';
 import { PerformanceMonitor } from '@/components/ui/PerformanceMonitor';
 import { useDashboard } from '@/components/providers/DataProvider';
 
 export function Dashboard() {
   const { store, driver } = useDashboard();
   const series = store.seriesMeta();
-  const barSeries = series.find((s) => s.id === 'spindle-load') ?? series[0];
+  const byId = (id: string) => series.find((s) => s.id === id);
+  const barSeries = byId('spindle-load') ?? series[0];
+  const scatterX = byId('spindle-load') ?? series[0];
+  const scatterY = byId('vibration') ?? series[1] ?? series[0];
 
   return (
     <div className="dash">
@@ -18,6 +22,9 @@ export function Dashboard() {
           <LineChart key={s.id} driver={driver} store={store} series={s} />
         ))}
         {barSeries && <BarChart driver={driver} store={store} series={barSeries} />}
+        {scatterX && scatterY && (
+          <ScatterChart driver={driver} store={store} xSeries={scatterX} ySeries={scatterY} />
+        )}
       </div>
     </div>
   );
