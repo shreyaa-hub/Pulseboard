@@ -6,14 +6,16 @@ import { useChartRenderer } from '@/hooks/useChartRenderer';
 import { useTimeRangeSync } from '@/hooks/useTimeRangeSync';
 import { AGGREGATION_MS, type AggregationMode } from '@/components/providers/DataProvider';
 import { bucketAggregate, pickBucketMs } from '@/lib/aggregate';
-import { formatClock, formatValue, timeTicks } from '@/lib/canvasUtils';
+import { formatClock, formatValue, timeTicks, truncateToWidth } from '@/lib/canvasUtils';
 import type { DataStore } from '@/lib/dataStore';
 import { writeCell } from '@/lib/heatmapColor';
 import type { RafDriver } from '@/lib/rafDriver';
 import type { SeriesMeta } from '@/lib/types';
 import { followEdge, type PlotArea } from '@/lib/viewport';
 
-const GUTTER_LEFT = 118;
+const GUTTER_LEFT_DEFAULT = 118;
+const GUTTER_LEFT_COMPACT = 76;
+const NARROW_BREAKPOINT = 480;
 const GUTTER_BOTTOM = 22;
 const GUTTER_TOP = 8;
 const GUTTER_RIGHT = 12;
@@ -63,7 +65,7 @@ export function HeatmapChart({
   rangeOverrideMs = null,
   aggregation = 'auto',
 }: Props) {
-  const areaRef = useRef<PlotArea>({ left: GUTTER_LEFT, top: GUTTER_TOP, width: 0, height: 0 });
+  const areaRef = useRef<PlotArea>({ left: GUTTER_LEFT_DEFAULT, top: GUTTER_TOP, width: 0, height: 0 });
   const themeRef = useRef({ bg: '#12161c', grid: '#232a34', text: '#8b95a5' });
   const ticksRef = useRef(new Float64Array(14));
 
@@ -111,10 +113,14 @@ export function HeatmapChart({
       const rows = series.length;
       if (rows === 0) return;
 
+      const compact = size.width < NARROW_BREAKPOINT;
+      const gutterLeft = compact ? GUTTER_LEFT_COMPACT : GUTTER_LEFT_DEFAULT;
+      const labelFontPx = compact ? 10 : 11;
+
       const area = areaRef.current;
-      area.left = GUTTER_LEFT;
+      area.left = gutterLeft;
       area.top = GUTTER_TOP;
-      area.width = Math.max(1, size.width - GUTTER_LEFT - GUTTER_RIGHT);
+      area.width = Math.max(1, size.width - gutterLeft - GUTTER_RIGHT);
       area.height = Math.max(1, size.height - GUTTER_TOP - GUTTER_BOTTOM);
 
       if (resized && elementRef.current) {
@@ -196,7 +202,7 @@ export function HeatmapChart({
       const rowHeight = area.height / rows;
       ctx.strokeStyle = theme.grid;
       ctx.lineWidth = 1;
-      ctx.font = '11px ui-sans-serif, system-ui';
+      ctx.font = `${labelFontPx}px ui-sans-serif, system-ui`;
       ctx.fillStyle = theme.text;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'right';
@@ -207,7 +213,8 @@ export function HeatmapChart({
         ctx.lineTo(area.left + area.width, y);
         ctx.stroke();
         if (r < rows) {
-          ctx.fillText(series[r].label, area.left - 8, y + rowHeight / 2);
+          const label = truncateToWidth(ctx, series[r].label, gutterLeft - 16);
+          ctx.fillText(label, area.left - 8, y + rowHeight / 2);
         }
       }
 
