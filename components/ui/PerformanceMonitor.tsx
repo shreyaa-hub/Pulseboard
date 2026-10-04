@@ -1,21 +1,45 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useDashboard } from '@/components/providers/DataProvider';
 
 const LOADS = [1, 5, 20, 50];
 const CAPACITIES = [10_000, 50_000, 100_000];
 
+// Chrome-only: total memory the page's JavaScript is using right now.
+function readHeapMB(): number | null {
+  const mem = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
+  return mem ? mem.usedJSHeapSize / 1_048_576 : null;
+}
+
 export function PerformanceMonitor() {
   const { store, driver, pointsPerTick, setPointsPerTick, paused, setPaused, capacity, setCapacity } =
     useDashboard();
 
-  // Both stores publish on their own timers, so this component renders a few
-  // times a second regardless of how fast data is arriving or frames are drawn.
   const frame = useSyncExternalStore(driver.subscribeStats, driver.getStats, () => driver.getStats());
   const stats = useSyncExternalStore(store.subscribeStats, store.getStats, () => store.getStats());
 
   const held = (store.bytesHeld() / 1_048_576).toFixed(1);
+
+  // Read heap once a second, only in the browser (avoids server/client mismatch).
+  const [heap, setHeap] = useState<number | null>(null);
+  useEffect(() => {
+    setHeap(readHeapMB());
+    const id = setInterval(() => setHeap(readHeapMB()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const stress = pointsPerTick === 100 && capacity === 100_000;
+  const toggleStress = () => {
+    if (stress) {
+      setPointsPerTick(1);
+      setCapacity(20_000);
+    } else {
+      setPaused(false);
+      setPointsPerTick(100);
+      setCapacity(100_000);
+    }
+  };
 
   return (
     <aside className="perf">
@@ -41,8 +65,12 @@ export function PerformanceMonitor() {
           <dd>{stats.pointsPerSecond.toLocaleString()}/s</dd>
         </div>
         <div>
-          <dt>Buffers</dt>
+          <dt>Data buffers</dt>
           <dd>{held} MB</dd>
+        </div>
+        <div>
+          <dt>JS heap</dt>
+          <dd>{heap === null ? 'n/a' : `${heap.toFixed(1)} MB`}</dd>
         </div>
       </dl>
 
@@ -51,15 +79,14 @@ export function PerformanceMonitor() {
           {paused ? 'Resume feed' : 'Pause feed'}
         </button>
 
+        <button type="button" aria-pressed={stress} onClick={toggleStress}>
+          {stress ? 'Stop stress test' : 'Stress test'}
+        </button>
+
         <fieldset>
           <legend>Points per tick</legend>
           {LOADS.map((n) => (
-            <button
-              key={n}
-              type="button"
-              aria-pressed={pointsPerTick === n}
-              onClick={() => setPointsPerTick(n)}
-            >
+            <button key={n} type="button" aria-pressed={pointsPerTick === n} onClick={() => setPointsPerTick(n)}>
               {n}
             </button>
           ))}
@@ -68,12 +95,7 @@ export function PerformanceMonitor() {
         <fieldset>
           <legend>Buffer size</legend>
           {CAPACITIES.map((n) => (
-            <button
-              key={n}
-              type="button"
-              aria-pressed={capacity === n}
-              onClick={() => setCapacity(n)}
-            >
+            <button key={n} type="button" aria-pressed={capacity === n} onClick={() => setCapacity(n)}>
               {n / 1000}k
             </button>
           ))}
