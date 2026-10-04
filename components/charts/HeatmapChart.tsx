@@ -264,7 +264,7 @@ export function HeatmapChart({
         <span className="chart-readout">
           {readout
             ? `${readout.label}: ${formatValue(readout.v, 100)} ${readout.unit} @ ${formatClock(readout.t)}`
-            : 'hover a cell'}
+            : ''}
         </span>
       </figcaption>
 

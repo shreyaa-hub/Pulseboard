@@ -118,12 +118,17 @@ a {
   content: '⌘/Ctrl + scroll to zoom · drag to pan';
   position: absolute;
   right: 6px;
-  bottom: 4px;
+  top: 4px;
   font-size: 9.5px;
   color: var(--chart-label);
-  opacity: 0.45;
+  opacity: 0;
+  transition: opacity 0.15s ease;
   pointer-events: none;
   white-space: nowrap;
+}
+
+.chart-body:hover::after {
+  opacity: 0.45;
 }
 
 @media (max-width: 480px) {
